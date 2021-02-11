@@ -2,9 +2,12 @@ use std::env;
 use std::fs;
 use std::process;
 
+use serde_json::Value;
+
 fn main() {
     let path = input_file();
     let json = contents(&path);
+    let json = pretty(json);
 
     println!("{}", json);
 }
@@ -47,4 +50,26 @@ fn contents(path: &str) -> String {
             process::exit(1);
         }
     }
+}
+
+fn pretty(json: String) -> String {
+    let result: Value = match serde_json::from_str(&json) {
+        Ok(json) => json,
+        Err(err) => {
+            let error = format!("Error: Unable deserialize JSON. {}.", err);
+            eprintln!("{}", error);
+            process::exit(1);
+        }
+    };
+
+    let result = match serde_json::to_string_pretty(&result) {
+        Ok(json) => json,
+        Err(err) => {
+            let error = format!("Error: Unable prettify JSON. {}.", err);
+            eprintln!("{}", error);
+            process::exit(1);
+        }
+    };
+
+    result
 }
