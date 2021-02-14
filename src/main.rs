@@ -13,24 +13,16 @@ fn main() {
 }
 
 fn input_file() -> String {
-    let usage = "Usage: pj -i <file_name>";
+    let usage = "Usage: pj <file_name>";
     let args: Vec<String> = env::args().collect();
 
-    if args.len() != 3 {
-        let error = format!("Error: Expected 2 args. Received {}.", args.len());
+    if args.len() != 2 {
+        let error = "Error: Expected input file name";
         eprintln!("{}\n{}", error, usage);
         process::exit(1);
     }
 
-    let input_flag = &args[1];
-
-    if !input_flag.eq("-i") {
-        let error = "Error: Input file flag required";
-        eprintln!("{}\n{}", error, usage);
-        process::exit(1);
-    }
-
-    let file_name = &args[2];
+    let file_name = &args[1];
 
     if file_name.len() < 1 {
         let error = "Error: File name required";
