@@ -1,67 +1,78 @@
 use std::env;
 use std::fs;
+use std::io;
 use std::process;
 
-use serde_json::Value;
-
 fn main() {
-    let path = input_file();
-    let json = contents(&path);
-    let json = pretty(json);
+    let path = get_path_or_quit();
+    let input = read_file_or_quit(path);
+    let json = deserialize_or_quit(input);
 
-    println!("{}", json);
+    prettify_or_quit(json);
 }
 
-fn input_file() -> String {
+/// Naive argument parsing that returns a single input file from which to read.
+/// If any of the previously described actions fail then the program halts and
+/// outputs a help message.
+fn get_path_or_quit() -> String {
     let usage = "Usage: pj <file_name>";
     let args: Vec<String> = env::args().collect();
 
+    // Expect the first argument to be the program name and the second to be the
+    // input string (i.e. file name)
     if args.len() != 2 {
-        let error = "Error: Expected input file name";
+        let error = "Error: expected single input file name";
         eprintln!("{}\n{}", error, usage);
         process::exit(1);
     }
 
-    let file_name = &args[1];
+    let file_name = args[1].clone();
 
-    if file_name.len() < 1 {
+    if file_name.is_empty() {
         let error = "Error: File name required";
         eprintln!("{}\n{}", error, usage);
         process::exit(1);
     }
 
-    file_name.to_owned()
+    file_name
 }
 
-fn contents(path: &str) -> String {
+/// Returns the contents of the given file name as a string or terminates the
+/// program with a non-zero exit code and an error message
+fn read_file_or_quit(path: String) -> String {
     match fs::read_to_string(path) {
         Ok(contents) => contents,
-        Err(err) => {
-            let error = format!("Error: Unable to read '{}'. {}.", path, err);
-            eprintln!("{}", error);
+        Err(why) => {
+            eprintln!("Error: Unable to read file ({})", why);
             process::exit(1);
         }
     }
 }
 
-fn pretty(json: String) -> String {
-    let result: Value = match serde_json::from_str(&json) {
+/// Returns a deserialized version of the input or terminates the program with
+/// a non-zero exit code and an error message
+fn deserialize_or_quit(input: String) -> serde_json::Value {
+    match serde_json::from_str(&input) {
         Ok(json) => json,
-        Err(err) => {
-            let error = format!("Error: Unable deserialize JSON. {}.", err);
-            eprintln!("{}", error);
+        Err(why) => {
+            eprintln!("Error: Unable to deserialize input ({}):\n{}", why, input);
             process::exit(1);
         }
+    }
+}
+
+/// Prints pretty-formatted version of input or terminates the program with a
+/// non-zero exit code and an error message
+fn prettify_or_quit(json: serde_json::Value) {
+    let writer = io::BufWriter::new(io::stdout());
+    let result = serde_json::to_writer_pretty(writer, &json);
+
+    if let Err(why) = result {
+        eprintln!("Error: Unable to prettify JSON ({}):\n{}", why, json);
+        process::exit(1);
     };
 
-    let result = match serde_json::to_string_pretty(&result) {
-        Ok(json) => json,
-        Err(err) => {
-            let error = format!("Error: Unable prettify JSON. {}.", err);
-            eprintln!("{}", error);
-            process::exit(1);
-        }
-    };
-
-    result
+    // The serde writer doesn't add a polite newline. This ensures the user's
+    // cursor is returned to the start of a newline in the terminal.
+    println!();
 }
